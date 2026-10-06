@@ -34,5 +34,49 @@ struct pixel add(struct pixel p1, struct pixel p2) {
  */
 struct image* apply_kernel(struct image* img, int* kernel, int ksize, float normalize) {
 
+    if (!img || !img->pixels || !kernel || img->width <= 0 || img->height <= 0 || ksize <= 0) {
+        return NULL;
+    }
+
+    if ((size_t) img->width > SIZE_MAX / sizeof(struct pixel) / (size_t) img->height) {
+        return NULL;
+    }
+
+    struct image* out = malloc(sizeof(struct image));
+    if (!out) {
+        return NULL;
+    }
+
+    out->width = img->width;
+    out->height = img->height;
+    out->pixels = malloc(sizeof(struct pixel) * (size_t) out->width * out->height);
+    if (!out->pixels) {
+        free(out);
+        return NULL;
+    }
+
+    int radius = ksize / 2;
+    for (int y = 0; y < img->height; y++) {
+        for (int x = 0; x < img->width; x++) {
+            struct pixel total = {0, 0, 0};
+            for (int ky = 0; ky < ksize; ky++) {
+                int source_y = y + ky - radius;
+                if (source_y < 0 || source_y >= img->height) {
+                    continue;
+                }
+                for (int kx = 0; kx < ksize; kx++) {
+                    int source_x = x + kx - radius;
+                    if (source_x < 0 || source_x >= img->width) {
+                        continue;
+                    }
+                    struct pixel value = img->pixels[(size_t) source_y * img->width + source_x];
+                    total = add(total, mul(value, kernel[(size_t) ky * ksize + kx]));
+                }
+            }
+            out->pixels[(size_t) y * out->width + x] = mul(total, normalize);
+        }
+    }
+
+    return out;
 }
 
